@@ -6,7 +6,7 @@ Content
 - Docker In-Depth
 - Images
 - Containers
-- Application Containerization
+- Containerizing Applications (Dockerfile)
 - Volumes & Persistent Data
 - Docker Networking
 - Docker Overlay Networking
@@ -102,6 +102,35 @@ Multi-stage builds have a single Dockerfile containing multiple FROM instruction
 Commands: `docker image build -f`, `FROM`, `RUN`, `COPY`, `EXPOSE`, `ENTRYPOINT`, `LABEL`, `ENV`, `ONBUILD`, `HEALTHCHECK,`, `CMD`, ... and more. [DOCKERFILE_REFERENCE](https://docs.docker.com/reference/dockerfile/)
 
 ## Volumes and Persistent Data
+
+## Docker Networking
+
+Docker networking is based on an open-source pluggable architecture called the **Container Network Model (CNM)**. `libnetwork` is Docker’s real-world implementation of the CNM, and it provides all of Docker’s core networking capabilities. **Drivers** plug in to `libnetwork` to provide specific network topologies. Docker ships with a set of native drivers that deal with the most common networking requirements. These include single-host bridge networks, multi-host overlays, and options for plugging into existing VLANs.
+
+`libnetwork` provides a native service discovery and basic container load balancing solution.
+
+The design guide for Docker networking is the CNM. It outlines the fundamental building blocks of a Docker network, it defines three major building blocks:
+
+1. **Sandboxes**: A isolated network stack. It includes; Ethernet interfaces, ports, routing tables, and DNS config.
+2. **Endpoints**: Virtual network interfaces (E.g. veth). Like normal network interfaces, they’re responsible for making connections. In the case of the CNM, it’s the job of the endpoint to connect a sandbox to a network. Endpoints behave like regular network adapters, meaning they can only be connected to a single network. Therefore, if a container needs connecting to multiple networks, it will need multiple endpoints.
+3. **Networks**: Software implementation of an switch (802.1d bridge). As such, they group together and isolate a collection of endpoints that need to communicate.
+
+Nowadays, all of the core Docker networking code lives in `libnetwork`. It implements all three of the components defined in the CNM. It also implements native service discovery, ingress-based container load balancing, and the network control plane and management plane functionality. In order to meet the demands of complex highly-fluid environments, `libnetwork` allows multiple network drivers to be active at the same time. This means your Docker environment can sport a wide range of heterogeneous networks.
+
+The simplest type of Docker network is the `single-host` `bridge` network.
+
+- **Single-host** tells us it only exists on a single Docker host and can only connect containers that are on the same host.
+- **Bridge** tells us that it’s an implementation of an 802.1d bridge.
+
+> Every Docker host gets a default single-host bridge network. By default, this is the network that all new containers will be connected to unless you override it on the command line with the --network flag.
+
+So far, we’ve said that containers on bridge networks can only communicate with other containers on the same network. However, you can get around this using port mappings. Port mappings let you map a container to a port on the Docker host. Any traffic hitting the Docker host on the configured port will be directed to the container. Mapping ports like this works, but it’s clunky and doesn’t scale. For example, only a single container can bind to any port on the host. This means no other containers on that host will be able to bind to that port. This is one of the reason’s that single-host bridge networks are only useful for local development and very small applications.
+
+Commands: `docker network ls`, `docker network create`, `docker network create -d overlay <network_name>`, `docker network inspect`, `docker network prune`, `docker network rm`
+
+## Docker Overlay Networking
+
+## Some Best Practices For Docker
 
 Some Best Practices:
 
