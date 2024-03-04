@@ -107,8 +107,6 @@ Commands: `docker image build -f`, `FROM`, `RUN`, `COPY`, `EXPOSE`, `ENTRYPOINT`
 
 Docker networking is based on an open-source pluggable architecture called the **Container Network Model (CNM)**. `libnetwork` is Docker’s real-world implementation of the CNM, and it provides all of Docker’s core networking capabilities. **Drivers** plug in to `libnetwork` to provide specific network topologies. Docker ships with a set of native drivers that deal with the most common networking requirements. These include single-host bridge networks, multi-host overlays, and options for plugging into existing VLANs.
 
-`libnetwork` provides a native service discovery and basic container load balancing solution.
-
 The design guide for Docker networking is the CNM. It outlines the fundamental building blocks of a Docker network, it defines three major building blocks:
 
 1. **Sandboxes**: A isolated network stack. It includes; Ethernet interfaces, ports, routing tables, and DNS config.
