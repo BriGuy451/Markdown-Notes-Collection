@@ -54,7 +54,7 @@ The Container Model: The server is powered on and the OS boots. In the Docker wo
 
 At a high level, hypervisors perform hardware virtualization — they carve up physical hardware resources into virtual versions called VMs. On the other hand, containers perform OS virtualization — they carve OS resources into virtual versions called containers.
 
-Containers are designed to be immutable objects and it’s not a good practice to write data to them. For these reasons, Docker provides volumes that exist separately from the container, but can be mounted into the container at runtime. You can stop, start, pause, and restart a container as many times as you want. It’s not until you explicitly delete a container that you run a chance of losing its data. Even then, if you’re storing data outside the container in a volume, that data’s going to persist even after the container has gone.
+Containers are designed to be immutable. This is just a buzzword that means read-only — it’s a best practice not to change the configuration of a container after it’s deployed. If something breaks or you need to change something, you should create a new container with the fixes/updates and deploy it in place of the old container. You shouldn’t log into a running container and make configuration changes. Docker provides volumes that exist separately from the container, but can be mounted into the container at runtime. You can stop, start, pause, and restart a container as many times as you want. It’s not until you explicitly delete a container that you run a chance of losing its data. Even then, if you’re storing data outside the container in a volume, that data’s going to persist even after the container has gone.
 
 It’s often a good idea to run containers with a restart policy. This is a form of self-healing that enables Docker to automatically restart them after certain events or failures have occurred.
 
@@ -102,44 +102,33 @@ Multi-stage builds have a single Dockerfile containing multiple FROM instruction
 Commands: `docker image build -f`, `FROM`, `RUN`, `COPY`, `EXPOSE`, `ENTRYPOINT`, `LABEL`, `ENV`, `ONBUILD`, `HEALTHCHECK,`, `CMD`, ... and more. [DOCKERFILE_REFERENCE](https://docs.docker.com/reference/dockerfile/)
 
 ## Volumes and Persistent Data
-- Stateful applications that persist data are becoming more and more important in the world of cloud-native and microservices applications.
 
-- There are two main categories of data — persistent and non-persistent. Persistent is the data you need to keep. Things like; customer records, financial data, research results, audit logs, and even some types of application log data. Non-persistent is the data you don’t need to keep.
+There are two main categories of data — persistent and non-persistent. Persistent is the data you need to keep. Things like; customer records, financial data, research results, audit logs, and even some types of application log data. Non-persistent is the data you don’t need to keep. Stateful applications that persist data are becoming more and more important in the world of cloud-native and microservices applications.
 
-- To deal with non-persistent data, every Docker container gets its own non-persistent storage. This is automatically created for every container and is tightly coupled to the lifecycle of the container. As a result, deleting the container will delete the storage and any data on it.
+Every Docker container gets its own non-persistent storage. This is automatically created for every container and is tightly coupled to the lifecycle of the container. As a result, deleting the container will delete the storage and any data on it.
 
-- To deal with persistent data, a container needs to store it in a volume. Volumes are separate objects that have their lifecycles decoupled from containers. This means you can create and manage volumes independently, and they’re not tied to the lifecycle of any container. Net result, you can delete a container that’s using a volume, and the volume won’t be deleted.
+To deal with persistent data, a container needs to store it in a volume. Volumes are separate objects that have their lifecycles decoupled from containers. This means you can create and manage volumes independently, and they’re not tied to the lifecycle of any container. Net result, you can delete a container that’s using a volume, and the volume won’t be deleted.
 
-- Containers are designed to be immutable. This is just a buzzword that means read-only — it’s a best practice not to change the configuration of a container after it’s deployed. If something breaks or you need to change something, you should create a new container with the fixes/updates and deploy it in place of the old container. You shouldn’t log into a running container and make configuration changes!
+Every Docker container is created by adding a thin read-write layer on top of the read-only image it’s based on. This thin writable layer is an integral part of a container and enables all read/write operations. If you, or an application, update files or add new files, they’ll be written to this layer. The writable container layer exists in the filesystem of the Docker host, and you’ll hear it called various names. These include local storage, ephemeral storage, and graphdriver storage.
 
-- Every Docker container is created by adding a thin read-write layer on top of the read-only image it’s based on.
-
-- The writable container layer exists in the filesystem of the Docker host, and you’ll hear it called various names. These include local storage, ephemeral storage, and graphdriver storage.
-
-- This thin writable layer is an integral part of a container and enables all read/write operations. If you, or an application, update files or add new files, they’ll be written to this layer. However, it’s tightly coupled to the container’s lifecycle — it gets created when the container is created and it gets deleted when the container is deleted.
-
-- Volumes are the recommended way to persist data in containers. There are three major reasons for this:
+Volumes are the recommended way to persist data in containers. There are three major reasons for this:
 
 1. Volumes are independent objects that are not tied to the lifecycle of a container
 2. Volumes can be mapped to specialized external storage systems
-3. Volumes enable multiple containers on different Docker hosts to access and share the same data 
+3. Volumes enable multiple containers on different Docker hosts to access and share the same data
 
-- At a high-level, you create a volume, then you create a container and mount the volume into it. The volume is mounted into a directory in the container’s filesystem, and anything written to that directory is stored in the volume. If you delete the container, the volume and its data will still exist.
+At a high-level, you create a volume, then you create a container and mount the volume into it. The volume is mounted into a directory in the container’s filesystem, and anything written to that directory is stored in the volume. If you delete the container, the volume and its data will still exist. Volumes are first-class citizens in Docker. Among other things, this means they are their own object in the API and have their own docker volume sub-command.
 
-- Volumes are first-class citizens in Docker. Among other things, this means they are their own object in the API and have their own docker volume sub-command.
+By default, Docker creates new volumes with the built-in local driver. As the name suggests, volumes created with the local driver are only available to containers on the same node as the volume. You can use the -d flag to specify a different driver. Third-party volume drivers are available as plugins. These provide Docker with seamless access external storage systems such as cloud storage services and on-premises storage systems.
 
-- By default, Docker creates new volumes with the built-in local driver. As the name suggests, volumes created with the local driver are only available to containers on the same node as the volume. You can use the -d flag to specify a different driver. Third-party volume drivers are available as plugins. These provide Docker with seamless access external storage systems such as cloud storage services and on-premises storage systems including SAN or NAS.
+> All volumes created with the local driver get their own directory under /var/lib/docker/volumes on Linux, and C:\ProgramData\Docker\volumes on Windows.
 
-- All volumes created with the local driver get their own directory under /var/lib/docker/volumes on Linux, and C:\ProgramData\Docker\volumes on Windows.
+Integrating external storage systems with Docker makes it possible to share volumes between cluster nodes. These external systems can be cloud storage services or enterprise storage systems in your on-premises data centers. As an example, a single storage LUN or NFS share can be presented to multiple Docker hosts, allowing it to be used by containers and service replicas no-matter which Docker host they’re running on.
 
-- However, it’s also possible to deploy volumes via Dockerfiles using the VOLUME instruction. The format is VOLUME <container-mount-point>. Interestingly, you cannot specify a directory on the host when defining a volume in a Dockerfile. This is because host directories are different depending on what OS your Docker host is running – it could break your builds if you specified a directory on a Docker host that doesn’t exist. As a result, defining a volume in a Dockerfile requires you to specify host directories at deploy-time.
+> Building a setup like this requires a lot of things. You need access to a specialised storage systems and knowledge of how it works and presents storage. You also need to know how your applications read and write data to the shared storage. Finally, you need a volumes driver plugin that works with the external storage system. Docker Hub is the best place to find volume plugins. Login to Docker Hub, select the view to show plugins instead of containers, and filter results to only show Volume plugins. Once you’ve located the appropriate plugin for your storage system, you create any configuration files it might need, and install it with docker plugin install.
 
-- Integrating external storage systems with Docker makes it possible to share volumes between cluster nodes. These external systems can be cloud storage services or enterprise storage systems in your on-premises data centers. As an example, a single storage LUN or NFS share can be presented to multiple Docker hosts, allowing it to be used by containers and service replicas no-matter which Docker host they’re running on.
+**A major concern with any configuration that shares a single volume among multiple containers is data corruption.**
 
-- Building a setup like this requires a lot of things. You need access to a specialised storage systems and knowledge of how it works and presents storage. You also need to know how your applications read and write data to the shared storage. Finally, you need a volumes driver plugin that works with the external storage system. Docker Hub is the best place to find volume plugins. Login to Docker Hub, select the view to show plugins instead of containers, and filter results to only show Volume plugins. Once you’ve located the appropriate plugin for your storage system, you create any configuration files it might need, and install it with docker plugin install.
-
-- A major concern with any configuration that shares a single volume among multiple containers is data corruption.
- 
 Commands: `docker volume create`, `docker volume ls`, `docker volume inspect`, `docker volume prune`, `docker volume rm`, `docker plugin install`, `docker plugin ls`
 
 ## Docker Networking
