@@ -103,6 +103,46 @@ Commands: `docker image build -f`, `FROM`, `RUN`, `COPY`, `EXPOSE`, `ENTRYPOINT`
 
 ## Volumes and Persistent Data
 
+Stateful applications that persist data are becoming more and more important in the world of cloud-native and microservices applications.
+
+There are two main categories of data — persistent and non-persistent. Persistent is the data you need to keep. Things like; customer records, financial data, research results, audit logs, and even some types of application log data. Non-persistent is the data you don’t need to keep.
+
+To deal with non-persistent data, every Docker container gets its own non-persistent storage. This is automatically created for every container and is tightly coupled to the lifecycle of the container. As a result, deleting the container will delete the storage and any data on it.
+
+To deal with persistent data, a container needs to store it in a volume. Volumes are separate objects that have their lifecycles decoupled from containers. This means you can create and manage volumes independently, and they’re not tied to the lifecycle of any container. Net result, you can delete a container that’s using a volume, and the volume won’t be deleted.
+
+Containers are designed to be immutable. This is just a buzzword that means read-only — it’s a best practice not to change the configuration of a container after it’s deployed. If something breaks or you need to change something, you should create a new container with the fixes/updates and deploy it in place of the old container. You shouldn’t log into a running container and make configuration changes!
+
+Every Docker container is created by adding a thin read-write layer on top of the read-only image it’s based on.
+
+The writable container layer exists in the filesystem of the Docker host, and you’ll hear it called various names. These include local storage, ephemeral storage, and graphdriver storage.
+
+This thin writable layer is an integral part of a container and enables all read/write operations. If you, or an application, update files or add new files, they’ll be written to this layer. However, it’s tightly coupled to the container’s lifecycle — it gets created when the container is created and it gets deleted when the container is deleted.
+
+Volumes are the recommended way to persist data in containers. There are three major reasons for this:
+
+1. Volumes are independent objects that are not tied to the lifecycle of a container
+2. Volumes can be mapped to specialized external storage systems
+3. Volumes enable multiple containers on different Docker hosts to access and share the same data
+
+At a high-level, you create a volume, then you create a container and mount the volume into it. The volume is mounted into a directory in the container’s filesystem, and anything written to that directory is stored in the volume. If you delete the container, the volume and its data will still exist.
+
+Volumes are first-class citizens in Docker. Among other things, this means they are their own object in the API and have their own docker volume sub-command.
+
+By default, Docker creates new volumes with the built-in local driver. As the name suggests, volumes created with the local driver are only available to containers on the same node as the volume. You can use the -d flag to specify a different driver. Third-party volume drivers are available as plugins. These provide Docker with seamless access external storage systems such as cloud storage services and on-premises storage systems including SAN or NAS.
+
+All volumes created with the local driver get their own directory under /var/lib/docker/volumes on Linux, and C:\ProgramData\Docker\volumes on Windows.
+
+However, it’s also possible to deploy volumes via Dockerfiles using the VOLUME instruction. The format is VOLUME <container-mount-point>. Interestingly, you cannot specify a directory on the host when defining a volume in a Dockerfile. This is because host directories are different depending on what OS your Docker host is running – it could break your builds if you specified a directory on a Docker host that doesn’t exist. As a result, defining a volume in a Dockerfile requires you to specify host directories at deploy-time.
+
+Integrating external storage systems with Docker makes it possible to share volumes between cluster nodes. These external systems can be cloud storage services or enterprise storage systems in your on-premises data centers. As an example, a single storage LUN or NFS share can be presented to multiple Docker hosts, allowing it to be used by containers and service replicas no-matter which Docker host they’re running on.
+
+Building a setup like this requires a lot of things. You need access to a specialised storage systems and knowledge of how it works and presents storage. You also need to know how your applications read and write data to the shared storage. Finally, you need a volumes driver plugin that works with the external storage system. Docker Hub is the best place to find volume plugins. Login to Docker Hub, select the view to show plugins instead of containers, and filter results to only show Volume plugins. Once you’ve located the appropriate plugin for your storage system, you create any configuration files it might need, and install it with docker plugin install.
+
+A major concern with any configuration that shares a single volume among multiple containers is data corruption.
+
+Commands: `docker volume create`, `docker volume ls`, `docker volume inspect`, `docker volume prune`, `docker volume rm`, `docker plugin install`, `docker plugin ls`
+
 ## Docker Networking
 
 Docker networking is based on an open-source pluggable architecture called the **Container Network Model (CNM)**. `libnetwork` is Docker’s real-world implementation of the CNM, and it provides all of Docker’s core networking capabilities. **Drivers** plug in to `libnetwork` to provide specific network topologies. Docker ships with a set of native drivers that deal with the most common networking requirements. These include single-host bridge networks, multi-host overlays, and options for plugging into existing VLANs.
@@ -115,6 +155,8 @@ The design guide for Docker networking is the CNM. It outlines the fundamental b
 
 Nowadays, all of the core Docker networking code lives in `libnetwork`. It implements all three of the components defined in the CNM. It also implements native service discovery, ingress-based container load balancing, and the network control plane and management plane functionality. In order to meet the demands of complex highly-fluid environments, `libnetwork` allows multiple network drivers to be active at the same time. This means your Docker environment can sport a wide range of heterogeneous networks.
 
+> If you’re unsure about terms such as control plane and data plane, control plane traffic is cluster management traffic, whereas data plane traffic is application traffic.
+
 The simplest type of Docker network is the `single-host` `bridge` network.
 
 - **Single-host** tells us it only exists on a single Docker host and can only connect containers that are on the same host.
@@ -126,7 +168,11 @@ So far, we’ve said that containers on bridge networks can only communicate wit
 
 Commands: `docker network ls`, `docker network create`, `docker network create -d overlay <network_name>`, `docker network inspect`, `docker network prune`, `docker network rm`
 
-## Docker Overlay Networking
+### Overlay Networking
+
+It’s vital that containers can communicate with each other reliably and securely, even when they’re on different hosts that are on different networks. This is where overlay networking comes in to play, overlay networks are multi-host. They allow you to create a flat, secure, layer-2 network, spanning multiple hosts. Containers connect to this and can communicate directly. Overlay networks are ideal for container-to-container communication, including container-only applications, and they scale well. By default, Docker overlay networks encrypt cluster management traffic but not application traffic. You must explicitly enable encryption of application traffic.
+
+Docker provides a native driver for overlay networks. This makes creating them as simple as adding the --d overlay flag to the docker network create command.
 
 ## Some Best Practices For Docker
 
